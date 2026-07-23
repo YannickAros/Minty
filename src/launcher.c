@@ -43,6 +43,7 @@ struct boardConfig cfg = {
 
 extern Cartridge cart;     // main data structure for cart emulation
 
+extern mm_map_t m;
 
 // concole configuration
 uint8_t tv_mode;      // 0: PAL, 1: NTSC
@@ -66,7 +67,6 @@ INFO_ENTRY *info_entries = (INFO_ENTRY *) (cart.ROM + 0x7000);
 // buffer for information data to pass to INTY launcher
 // 204 bytes per page (20400 bytes allocated allowing for 100 pages)
 // 0x7000 + (204 * 100)/2 = 0x97D8
-
 
 int filefrom = 0, fileto = 0;
 
@@ -148,12 +148,34 @@ int LoadGame(int entry_num) {
       }
    }
 
+   // test
+   /*
+   mm_init(&m);
+
+   // Cat Attack
+   mm_add(&m, 0x10000, 0x1000C, 0x4800, MM_NO_PAGE);
+   mm_add(&m, 0x1000D, 0x103AB, 0x4810, MM_NO_PAGE);
+   mm_add(&m, 0x103AC, 0x113AB, 0x5000, MM_NO_PAGE);
+   mm_add(&m, 0x113AC, 0x123A7, 0x6000, MM_NO_PAGE);
+   mm_add(&m, 0x123A8, 0x12A57, 0xA000, MM_NO_PAGE);
+
+   uint16_t addr = 0x4800;
+   uint32_t romaddr;
+
+   while (addr <= 0xAFFF) {
+      if (mm_lookup(&m, addr, 0, &romaddr))
+         printf("R:0x%lX  A:0x%X\n", romaddr, addr);
+      else
+         printf("R: (n/a)  A:0x%X\n", addr);
+      addr++;
+   }
+   */
+   // test
+
    gpio_put(LED, false);
 
    sleep_ms(200);
-
-   // finalise RAM configuration
-   getRAMRange(&cart.ramfrom, &cart.ramto, &cart.ramwidth);
+   memset((uint16_t *) cart.RAM, 0, sizeof(cart.RAM));
 
    // returns 0 to indicate success so that launcher execution stops and actual game is launched
    return 0;
@@ -312,24 +334,27 @@ void IntyMenu(int type) {       // 1=start, 2=next page, 3=prev page, 4=dir up
 }
 
 void RunLauncher() {
+   
    // Load launcher into memory
    for (int i = 0; i < (sizeof(mintyfw) / 2); i++) 
       cart.ROM[i] = mintyfw[(i * 2) + 1] | (mintyfw[i * 2] << 8);
    
-   // Configure card
-   cleanSlots();
+   printf("load launcher memory map...");
 
+   mm_init(&m);
+
+   mm_add_ram(&m, 0x8000, 0x9FFF, 8);
 
 	if ((sizeof(mintyfw) / 2) < 0x1000) {
-		addSlot(0x0000, (sizeof(mintyfw) / 2)-1, 0x5000, 0, ROM_SLOT);
-	}
-	else {
-		addSlot(0x0000, 0x0FFF, 0x5000, 0, ROM_SLOT);
-		addSlot(0x1000, (sizeof(mintyfw) / 2)-1, 0x6000, 0, ROM_SLOT);
+      mm_add(&m, 0x0000, (sizeof(mintyfw) / 2)-1, 0x5000, MM_NO_PAGE);
+	} else {
+      mm_add(&m, 0x0000, 0x0FFF, 0x5000, MM_NO_PAGE);
+      mm_add(&m, 0x1000, (sizeof(mintyfw) / 2)-1, 0x6000, MM_NO_PAGE);
    }
-   addSlot(0x8000, 0x9FFF, 0, 0, RAM8_SLOT);
-   getRAMRange(&cart.ramfrom, &cart.ramto, &cart.ramwidth);
-   //printFilledSlots();
+
+   printf(" DONE\n");
+
+   printf("memory map data structure size: %d bytes\n", sizeof(m));
 
    // initialise exchange RAM data
    cart.RAM[VERSION_MAJOR_ADDR] = VERSION_MAJOR;

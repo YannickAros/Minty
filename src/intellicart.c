@@ -24,6 +24,8 @@ typedef enum {
 
 Cartridge cart;     // main data structure for cart emulation
 
+extern mm_map_t m;
+
 extern uint8_t tv_mode;      // 0: PAL, 1: NTSC
 extern uint8_t ecs_present;  // 0: ECS absent, 1: ECS present
 extern uint8_t ecs_volume;
@@ -32,10 +34,6 @@ void init_cart(void) {
 
    memset((uint16_t *) cart.ROM, 0, sizeof(cart.ROM));
    memset((uint16_t *) cart.RAM, 0, sizeof(cart.RAM));
-
-   cart.ramfrom = 0;
-   cart.ramto = 0;
-   cart.ramwidth = 0;
 
    cart.pagingSupport = false;
 #if CONFIG_JLP
@@ -53,13 +51,22 @@ void init_cart(void) {
 #if CONFIG_JLP
 inline void config_jlp(int jlp_value, int jlpflash_value, char *filename) {
 
+   if (jlp_value != 0) {
+      // JLP required
+      cart.JLPSupport = true;
+      printf("JLP support ON\n");
+
+      if (JLP_FEATURE_ACCEL(jlp_value)) {
+         cart.JLPAccel = true;
+         printf("JLP accelerators ON\n");
+      }
+   }
+
    cart.JLPFlashSize = jlpflash_value;
    if (cart.JLPFlashSize > 0) {
       printf("JLP flash ON\n");
       printf("JLP flash size: %d\n", cart.JLPFlashSize);
       cart.JLPFlash = true;
-      // force JLPSupport
-      jlp_value = 3;
    } else {
       if (JLP_FEATURE_FLASH(jlp_value)) {
          printf("JLP flash ON\n");
@@ -70,20 +77,6 @@ inline void config_jlp(int jlp_value, int jlpflash_value, char *filename) {
       else {
          printf("JLP flash OFF\n");
          cart.JLPFlash = false;
-      }
-   }
-
-   if (jlp_value != 0) {
-      // JLP required
-      cart.JLPSupport = true;
-      printf("JLP support ON\n");
-
-      // Declare JLP RAM emulation
-      // addSlot(0x8000, 0x9FFF, 0, 0, RAM16_SLOT);
-
-      if (JLP_FEATURE_ACCEL(jlp_value)) {
-         cart.JLPAccel = true;
-         printf("JLP accelerators ON\n");
       }
    }
 
@@ -192,7 +185,7 @@ int load_cfg(char *filename) {
 
    printf("load_cfg: use %s config file\n", tmp_buffer);
   
-   cleanSlots();
+   mm_init(&m);
 
    cfgsec = NONE;
 
@@ -242,7 +235,7 @@ int load_cfg(char *filename) {
                return num_pokes;
             }
             cart.pagingSupport = true;
-            addSlot(a, b, c, p, ROM_SLOT);
+            mm_add(&m, a, b, c, p);
 
          } else {
 
@@ -251,7 +244,7 @@ int load_cfg(char *filename) {
                printf("E: parsing error in line: \n\t %s\n", tmp_buffer);
                return num_pokes;
             }
-            addSlot(a, b, c, 0, ROM_SLOT);
+            mm_add(&m, a, b, c, MM_NO_PAGE);
          }
 
       } else if (cfgsec == MEMATTR) {
@@ -271,10 +264,11 @@ int load_cfg(char *filename) {
             printf("E: parsing error in line: \n\t %s\n", tmp_buffer);
             return num_pokes;
          }
-         if (w == 8)
-            addSlot(a, b, 0, 0, RAM8_SLOT);
-         else
-            addSlot(a, b, 0, 0, RAM16_SLOT);
+         if (w == 8) {
+            mm_add_ram(&m, a, b, 8);
+         } else {
+            mm_add_ram(&m, a, b, 16);
+         }
 
       } else if (cfgsec == VARS) {
 
@@ -329,14 +323,18 @@ int load_cfg(char *filename) {
    config_jlp(jlp_value, jlpflash_value, filename);
 #endif
 
+   // debug
+   //mm_print_internals(&m);
+
    printf("load_cfg done\n");
 
    return num_pokes;
 }
 
 void apply_pokes(char *filename) {
+
    char tmp_buffer[512] = {0};
-   cfgSection cfgsec; 
+   cfgSection cfgsec;
    vfs_file_t *f;
    int ret;
 
@@ -383,8 +381,8 @@ void apply_pokes(char *filename) {
                // Modify actual value @corresponding address in binary
                uint32_t romaddr;
                
-               if (mapAddress(poke_address, 0, &romaddr)) {
-                  cart.ROM[romaddr] = poke_value;               /* valid command */
+               if(mm_lookup(&m, poke_address, 0, (uint32_t *) &romaddr)) {
+                  cart.ROM[romaddr] = poke_value;
                   printf("Apply poke : value %lx @ address %lx (%lx)\n",poke_value, poke_address, romaddr);
                }
                else {
