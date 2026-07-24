@@ -203,8 +203,10 @@ target_sources(${PROJECT} PUBLIC
    ${CMAKE_CURRENT_LIST_DIR}/src/littlefs_backend.c
    ${CMAKE_CURRENT_LIST_DIR}/src/launcher.c
    ${CMAKE_CURRENT_LIST_DIR}/src/rommeta_parser.c
-   ${CMAKE_CURRENT_LIST_DIR}/src/ecs.c
+   ${CMAKE_CURRENT_LIST_DIR}/src/audio.c
    ${CMAKE_CURRENT_LIST_DIR}/src/emu2149.c
+   ${CMAKE_CURRENT_LIST_DIR}/src/ivoice.c
+   ${CMAKE_CURRENT_LIST_DIR}/src/intellivoice_minty.c
 )
 
 target_include_directories(${PROJECT} PUBLIC

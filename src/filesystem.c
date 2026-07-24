@@ -9,7 +9,7 @@
 #include "vfs.h"
 #include "launcher.h"
 #include "utils.h"
-#include "ecs.h"
+#include "audio.h"
 
 #if PICO_RP2350
    #include "pico/sha256.h"
@@ -239,12 +239,18 @@ int load_file(char *filename) {
 
                vfs_read(f, inputBuffer, 1);  // check for ECS compatibility
                
-#if CONFIG_ECS_AUDIO
+#if CONFIG_ECS_AUDIO || CONFIG_INTELLIVOICE
                if (ecs_present == 0) {
                   if ( (inputBuffer[0] >> 6) != 0 ) {
                      cart.ECSSupport = true;
-                     init_ecs(tv_mode, ecs_volume);
                   }
+               }
+               if ( (inputBuffer[0] >> 4) & 0x02 ) {
+                  cart.IntellivoiceSupport = true;
+                  printf("Intellivoice emulation enabled\n");
+               }
+               if (cart.ECSSupport || cart.IntellivoiceSupport) {
+                  init_audio(tv_mode, ecs_volume);
                }
 #endif
                vfs_read(f, inputBuffer, 2);  // skip 2 bytes to search JLP attributes

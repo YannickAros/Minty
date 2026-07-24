@@ -27,6 +27,9 @@
 #include "fatfs_backend.h"
 #include "littlefs_backend.h"
 #include "emu2149.h"
+#if CONFIG_INTELLIVOICE
+   #include "intellivoice_minty.h"
+#endif
 
 #if CONFIG_JLP
    #include "jlpflash.h"
@@ -145,6 +148,19 @@ void __time_critical_func(core1_main()) {
 
             addrIn = sio_hw->gpio_in & 0xFFFF;
             deviceAddress = false;
+#if CONFIG_INTELLIVOICE
+            /*
+             * Intellivoice is mapped at $0080/$0081.
+             * Reads must be prefetched here so DTB can output immediately.
+             */
+            if (cart.IntellivoiceSupport) {
+               if (intellivoice_is_addr(addrIn)) {
+                  dataOut = intellivoice_read_bus(addrIn);
+                  deviceAddress = true;
+                  continue;
+               }
+            }
+#endif
 
 #if CONFIG_JLP
             // addrInCopy is to pass address to other core for JLP functions processing
@@ -167,7 +183,7 @@ void __time_critical_func(core1_main()) {
                   }
             } 
 #endif
-            
+
             seg = (addrIn >> 12) & 0xF;
             mm_kind_t kind = mm_lookup(&m, addrIn, curPageArr[seg], (uint32_t *) &romaddr);
 
@@ -177,8 +193,8 @@ void __time_critical_func(core1_main()) {
             } else if (MM_IS_RAM(kind)) {
                dataOut = cart.RAM[romaddr];
                deviceAddress = true;
-            } 
-            
+            }
+
          } else {
             if (busState == BUS_DWS) {
 
@@ -190,6 +206,18 @@ void __time_critical_func(core1_main()) {
                
                dataIn = sio_hw->gpio_in & 0xFFFF;          
 
+#if CONFIG_INTELLIVOICE
+               /*
+                * Keep the timing-critical bus path short: the wrapper queues
+                * writes and applies them from the audio callback context.
+                */
+               if (cart.IntellivoiceSupport) {
+                  if (intellivoice_is_addr(addrIn)) {
+                     intellivoice_write_bus(addrIn, dataIn);
+                     continue;
+                  }
+               }
+#endif
 #if CONFIG_ECS_AUDIO
                if (cart.ECSSupport) {
                   if ( (addrIn & 0xFFF0) == 0x00F0 ) {
@@ -244,7 +272,7 @@ void __time_critical_func(core1_main()) {
                         cart.RAM[romaddr] = dataIn & 0xFF;
                      } else if (kind == MM_RAM16) {
                         cart.RAM[romaddr] = dataIn;
-                     } 
+                     }
                      
 #if CONFIG_JLP
                   }
