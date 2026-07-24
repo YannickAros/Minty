@@ -169,6 +169,7 @@ target_compile_definitions(${PROJECT} PRIVATE "CONFIG_FLASH_FAT_STORAGE=${CONFIG
 target_compile_definitions(${PROJECT} PRIVATE "CONFIG_FLASH_LFS_STORAGE=${CONFIG_FLASH_LFS_STORAGE}")
 target_compile_definitions(${PROJECT} PRIVATE "CONFIG_JLP=${CONFIG_JLP}")
 target_compile_definitions(${PROJECT} PRIVATE "CONFIG_ECS_AUDIO=${CONFIG_ECS_AUDIO}")
+target_compile_definitions(${PROJECT} PRIVATE "CONFIG_INTELLIVOICE=${CONFIG_INTELLIVOICE}")
 target_compile_definitions(${PROJECT} PRIVATE "MAX_ROM_SIZE=${MAX_ROM_SIZE}")
 
 if(CONFIG_FLASH_LFS_STORAGE)
