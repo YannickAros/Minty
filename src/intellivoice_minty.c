@@ -1,5 +1,6 @@
 #include <stdint.h>
 #include <stdbool.h>
+#include <stdio.h>
 
 #include "audio.h"
 #include "ivoice.h"
@@ -28,7 +29,6 @@ static volatile uint32_t ivoice_wr_dropped = 0;
 static volatile ivoice_write_t ivoice_wr_queue[IVOICE_WRITE_QUEUE_SIZE];
 #endif
 
-static uint8_t voice_volume = IVOICE_DEFAULT_VOLUME;
 static uint32_t voice_cycle_step_fp = 0;
 static uint32_t voice_cycle_frac = 0;
 static int voice_read_pos = 0;
@@ -48,30 +48,12 @@ static void intellivoice_apply_pending_writes(void)
 #endif
 }
 
-static uint32_t intellivoice_cpu_rate_for_mode(uint8_t tv_mode)
-{
-    /*
-     * ivoice_tk() uses the same CPU-side time base as FreeIntv:
-     * NTSC master clock 3579545 Hz / 4 = 894886.25 Hz.
-     * PAL  master clock 4000000 Hz / 4 = 1000000 Hz.
-     *
-     * tv_mode convention is copied from ecs.c:
-     *   0        => PAL
-     *   non-zero => NTSC
-     */
-    if (tv_mode == 0)
-        return 1000000u;
-
-    return 894886u;
-}
-
-void init_intellivoice(uint8_t tv_mode, uint8_t volume)
+void init_intellivoice(uint8_t tv_mode)
 {
     uint32_t callback_rate;
     uint32_t cpu_rate;
     int pal_mode;
 
-    voice_volume = volume;
     voice_read_pos = 0;
     voice_cycle_frac = 0;
 
@@ -82,12 +64,16 @@ void init_intellivoice(uint8_t tv_mode, uint8_t volume)
 #endif
 
     pal_mode = (tv_mode == 0) ? 1 : 0;
+
+    printf("Intellivoice init: %s mode\n", pal_mode ? "PAL" : "NTSC");
+
     ivoice_init(pal_mode, 1.0);
     ivoice_reset();
 
-    /* Audio callback frequency is the ECS timer frequency. */
+    /* Audio callback frequency is the audio callback frequency. */
     callback_rate = 1000000u / AUDIO_PERIOD;
-    cpu_rate = intellivoice_cpu_rate_for_mode(tv_mode);
+    /* CPU rate is the master clock divided by 4, depending on PAL vs. NTSC. */
+    cpu_rate = tv_mode? 894886u : 1000000u;
 
     /* Fixed-point cycles per audio callback, Q16.16. */
     voice_cycle_step_fp = (uint32_t)(((uint64_t)cpu_rate << 16) / callback_rate);
@@ -160,36 +146,5 @@ int16_t intellivoice_next_sample(void)
     if (voice_read_pos < intellivoice.cur_len)
         sample = ivoiceBuffer[voice_read_pos++];
 
-    /* 8-bit volume scale, same style as ECS volume usage. */
-    sample = (int16_t)(((int32_t)sample * (int32_t)(voice_volume + 1u)) >> 8);
-
     return sample;
-}
-
-int16_t intellivoice_next_pwm_delta(void)
-{
-    /*
-     * Convert signed 16-bit-ish voice output into a signed contribution for
-     * Minty's 10-bit PWM domain. This value should be added around midpoint
-     * and clipped to 0..PWM_WRAP by the caller.
-     */
-    return (int16_t)((int32_t)intellivoice_next_sample() >> 7);
-}
-
-uint32_t intellivoice_dropped_writes(void)
-{
-#if IVOICE_DIRECT_BUS_WRITES
-    return 0;
-#else
-    return ivoice_wr_dropped;
-#endif
-}
-
-uint8_t intellivoice_pending_writes(void)
-{
-#if IVOICE_DIRECT_BUS_WRITES
-    return 0;
-#else
-    return (uint8_t)((ivoice_wr_head - ivoice_wr_tail) & IVOICE_WRITE_QUEUE_MASK);
-#endif
 }

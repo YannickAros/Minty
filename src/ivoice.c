@@ -39,14 +39,13 @@
 
 #undef DEBUG_FIFO
 #ifdef DEBUG_FIFO
-#define dfprintf(x) jzp_printf x ; jzp_flush()
+#define dfprintf(x) printf(x)
 #else
-#define dfprintf(x)
+#define dfprintf(x) 
 #endif
 
-#undef DEBUG
 #ifdef DEBUG
-#define jzdprintf(x) jzp_printf x ; jzp_flush()
+#define jzdprintf(x) printf(x)
 #else
 #define jzdprintf(x)
 #endif
@@ -1324,7 +1323,7 @@ uint32_t ivoice_tk(uint32_t len)
 {
     ivoice_t *ivoice = &intellivoice;
     uint64_t until = (ivoice->now + len) * 4;
-    int samples, did_samp, old_idx;
+    int samples, did_samp;//, old_idx;
     int sys_clock = ivoice->pal_mode ? 4000000 : 3579545;
     int clock_per_samp = ivoice->pal_mode ? 400 : 358;
 
@@ -1434,7 +1433,7 @@ uint32_t ivoice_tk(uint32_t len)
         /*  repeat count holds up and we have room in our scratch buffer.   */
         /* ---------------------------------------------------------------- */
         did_samp = 0;
-        old_idx  = ivoice->sc_head;
+        //old_idx  = ivoice->sc_head;
         if (samples > 0) do
         {
             int do_samp;

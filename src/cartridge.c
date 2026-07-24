@@ -213,8 +213,8 @@ void __time_critical_func(core1_main()) {
                 */
                if (cart.IntellivoiceSupport) {
                   if (intellivoice_is_addr(addrIn)) {
-                     intellivoice_write_bus(addrIn, dataIn);
-                     continue;
+                     //intellivoice_write_bus(addrIn, dataIn);
+                     //continue;
                   }
                }
 #endif

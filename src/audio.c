@@ -1,6 +1,7 @@
 #if CONFIG_ECS_AUDIO || CONFIG_INTELLIVOICE
 
 #include <stdlib.h>
+#include <stdio.h>
 
 #include "pico/stdlib.h"
 #include "hardware/timer.h"
@@ -10,6 +11,9 @@
 #include "audio.h"
 #include "emu2149.h"
 #include "intellivoice_minty.h"
+#include "intellicart.h"
+
+extern Cartridge cart;     // main data structure for cart emulation
 
 static repeating_timer_t timer;
 PSG* psg0;
@@ -34,55 +38,76 @@ const uint8_t ECS_LUT[16] = {
    0x0F
 };
 
+
+
 bool audio_callback(repeating_timer_t *rt) {   
    int32_t ecs_raw = 0;
    int32_t ivoice_raw = 0;
    uint16_t pwm = 0;
+   static uint16_t cnt = 0;
 
-#if CONFIG_ECS_AUDIO
-   PSG_calc(psg0);
 
-   /* Mix 3 ECS PSG channels, apply 8-bit volume control, normalize to 10-bit PWM. */
-   ecs_raw = (int32_t)psg0->ch_out[0] +
-                     (int32_t)psg0->ch_out[1] +
-                     (int32_t)psg0->ch_out[2];
-#endif
 
-#if CONFIG_INTELLIVOICE
-   /*
-    * Intellivoice output is signed, mixig TBD.  For now, just use the raw output from the Intellivoice PWM delta generator.
-    * The Intellivoice PWM delta generator is already normalized to 10-bit PWM,
-    */
-    ivoice_raw = (int32_t)intellivoice_next_pwm_delta();
-#endif
+   if (cart.ECSSupport) {
+      PSG_calc(psg0);
+      // ecs audio output is ranging from 0 to 4095 per channel, the mixed output ranges from 0 to 12285
+      ecs_raw = (int32_t)psg0->out;
+   }
 
+   if (cart.IntellivoiceSupport) {
+      // Intellivoice output is signed, ranging from -32768 to 32767.
+      ivoice_raw = (int32_t)intellivoice_next_sample();
+      // scale to 0..4095 range to match ECS output
+      ivoice_raw = (ivoice_raw + 32768) >> 4;
+   }
+
+   /* apply 8-bit volume control, normalize to 10-bit PWM */
    pwm = (abs(ecs_raw+ivoice_raw) * (int32_t)(AudioVolume + 1) / 3) >> 10;
+   // clamp to 10-bit range
+   if (pwm > 1023) pwm = 1023;
+#if CMAKE_BUILD_TYPE == Debug
+   // debug output for audio callback every 0.2 seconds (8000 callbacks at 40kHz)
+   if (cnt++ >= 8000) {
+      cnt = 0;
+      printf("audio_callback: ecs=%08lX, ivoice=%08lX\n", ecs_raw, ivoice_raw);   
+   }
+#else
    pwm_set_gpio_level(AUDIO_PIN, pwm);
+#endif
    return true;
 }
+
+
 void init_audio(uint8_t tv_mode, uint8_t volume) {
 
-   gpio_set_function(AUDIO_PIN, GPIO_FUNC_PWM);
-   uint audioSlice = pwm_gpio_to_slice_num(AUDIO_PIN);
    AudioVolume = volume;
 
+#if CMAKE_BUILD_TYPE == Debug
+   printf("init_audio: tv_mode=%d, volume=%d\n", tv_mode, AudioVolume);
+#else
+   gpio_set_function(AUDIO_PIN, GPIO_FUNC_PWM);
+   uint audioSlice = pwm_gpio_to_slice_num(AUDIO_PIN);
+ 
    pwm_config cfg = pwm_get_default_config();
    pwm_config_set_clkdiv(&cfg, 1.0f);
    pwm_config_set_wrap(&cfg, PWM_WRAP);
    pwm_init(audioSlice, &cfg, true);
-
-#if CONFIG_ECS_AUDIO
-   if (tv_mode == 0) 
-      psg0 = PSG_new(PAL_ECS_FREQ/2, 1000000/AUDIO_PERIOD);
-   else
-      psg0 = PSG_new(NTSC_ECS_FREQ/2, 1000000/AUDIO_PERIOD);
-
-   PSG_reset(psg0);
-   PSG_setVolumeMode(psg0, EMU2149_VOL_AY_3_8910);
 #endif
-#if CONFIG_INTELLIVOICE
-   init_intellivoice(tv_mode, AudioVolume);
-#endif
+
+   if (cart.ECSSupport) {
+      if (tv_mode == 0) 
+         psg0 = PSG_new(PAL_ECS_FREQ/2, 1000000/AUDIO_PERIOD);
+      else
+         psg0 = PSG_new(NTSC_ECS_FREQ/2, 1000000/AUDIO_PERIOD);
+   
+
+      PSG_reset(psg0);
+      PSG_setVolumeMode(psg0, EMU2149_VOL_AY_3_8910);
+   }
+
+   if (cart.IntellivoiceSupport) {
+      init_intellivoice(tv_mode);
+   }
 
    add_repeating_timer_us(-AUDIO_PERIOD, audio_callback, NULL, &timer);
 

@@ -14,11 +14,9 @@
  * The low-level SP0256 emulation is provided by ivoice.c / ivoice.h.
  */
 
-#define IVOICE_ADDR_ALD   0x0080u
-#define IVOICE_ADDR_FIFO  0x0081u
+#define IVOICE_ADDR_ALD   0x0080
+#define IVOICE_ADDR_FIFO  0x0081
 
-/* Default voice volume if caller does not provide one explicitly. */
-#define IVOICE_DEFAULT_VOLUME 128u
 
 /*
  * If enabled, intellivoice_write_bus() calls ivoice_wr() directly from the
@@ -39,7 +37,7 @@ static inline bool intellivoice_is_addr(uint16_t addr)
 }
 
 /* tv_mode follows existing Minty/ECS convention: 0 = PAL, non-zero = NTSC. */
-void init_intellivoice(uint8_t tv_mode, uint8_t volume);
+void init_intellivoice(uint8_t tv_mode);
 void intellivoice_reset(void);
 
 /* Functions to be called from the Minty bus handler. */
@@ -49,18 +47,7 @@ void intellivoice_write_bus(uint16_t addr, uint16_t data);
 /*
  * Called once per ECS audio timer tick.
  * Advances SP0256 timing, applies pending bus writes, and returns the next
- * signed 16-bit voice sample, scaled by the configured voice volume.
  */
 int16_t intellivoice_next_sample(void);
-
-/*
- * Convenience helper for 10-bit PWM mixing.
- * Returns a signed delta approximately suitable for adding around PWM midpoint.
- */
-int16_t intellivoice_next_pwm_delta(void);
-
-/* Optional diagnostics. */
-uint32_t intellivoice_dropped_writes(void);
-uint8_t intellivoice_pending_writes(void);
 
 #endif /* INTELLIVOICE_MINTY_H */

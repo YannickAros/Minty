@@ -44,8 +44,8 @@ void init_cart(void) {
    cart.flashfile[0] = '\0';
 #endif
 #if CONFIG_ECS_AUDIO || CONFIG_INTELLIVOICE
-   cart.ECSSupport = 0;
-   cart.IntellivoiceSupport = 0;
+   cart.ECSSupport = false;
+   cart.IntellivoiceSupport = false;
 #endif
 }
 
