@@ -12,7 +12,10 @@
 #define IVOICE_H_
 
 #include <stdint.h>
-#include "minty_ivoice_config.h"
+
+#ifndef INLINE
+#define INLINE inline
+#endif
 
 #ifndef SCBUF_SIZE
 #define SCBUF_SIZE   (4096)             /* Must be power of 2               */
@@ -77,6 +80,7 @@ typedef struct ivoice_t
  * Save-state support kept for source compatibility with FreeIntv.
  * Minty does not need to use this unless save-state support is later added.
  */
+
 typedef struct ivoiceSerialized
 {
     ivoice_t main;
@@ -84,12 +88,14 @@ typedef struct ivoiceSerialized
     int16_t  ivoiceBuffer[AUDIO_FREQ / 60 * 2];
 } ivoiceSerialized;
 
-extern ivoice_t intellivoice;
+
 extern int      ivoiceBufferSize;
 extern int16_t  ivoiceBuffer[];
 
 void ivoiceSerialize(struct ivoiceSerialized *data);
 void ivoiceUnserialize(const struct ivoiceSerialized *data);
+
+extern ivoice_t intellivoice;
 
 /*
  * Advance Intellivoice time.

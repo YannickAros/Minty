@@ -44,9 +44,6 @@ bool audio_callback(repeating_timer_t *rt) {
    int32_t ecs_raw = 0;
    int32_t ivoice_raw = 0;
    uint16_t pwm = 0;
-   static uint16_t cnt = 0;
-
-
 
    if (cart.ECSSupport) {
       PSG_calc(psg0);
@@ -65,8 +62,9 @@ bool audio_callback(repeating_timer_t *rt) {
    pwm = (abs(ecs_raw+ivoice_raw) * (int32_t)(AudioVolume + 1) / 3) >> 10;
    // clamp to 10-bit range
    if (pwm > 1023) pwm = 1023;
-#if CMAKE_BUILD_TYPE == Debug
+#ifndef NDEBUG
    // debug output for audio callback every 0.2 seconds (8000 callbacks at 40kHz)
+   static uint16_t cnt = 0;
    if (cnt++ >= 8000) {
       cnt = 0;
       printf("audio_callback: ecs=%08lX, ivoice=%08lX\n", ecs_raw, ivoice_raw);   
@@ -82,7 +80,7 @@ void init_audio(uint8_t tv_mode, uint8_t volume) {
 
    AudioVolume = volume;
 
-#if CMAKE_BUILD_TYPE == Debug
+#ifndef NDEBUG
    printf("init_audio: tv_mode=%d, volume=%d\n", tv_mode, AudioVolume);
 #else
    gpio_set_function(AUDIO_PIN, GPIO_FUNC_PWM);

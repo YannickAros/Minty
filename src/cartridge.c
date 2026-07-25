@@ -26,16 +26,15 @@
 #include "launcher.h"
 #include "fatfs_backend.h"
 #include "littlefs_backend.h"
-#include "emu2149.h"
-#if CONFIG_INTELLIVOICE
-   #include "intellivoice_minty.h"
-#endif
+#include "audio.h"
+
 
 #if CONFIG_JLP
    #include "jlpflash.h"
 #endif
 
 #if CONFIG_ECS_AUDIO
+   #include "emu2149.h"
    #define ECS_BUF_SIZE    32
    extern PSG* psg0;
    extern const uint8_t ECS_LUT[16];
@@ -43,6 +42,16 @@
    volatile uint8_t ayWrite = 0;
    volatile uint8_t ayRegister[ECS_BUF_SIZE] = {0};
    volatile uint8_t ayValue[ECS_BUF_SIZE] = {0};
+#endif
+
+#if CONFIG_INTELLIVOICE
+   #include "intellivoice_minty.h"
+   #define IVOICE_BUF_SIZE    32
+   extern ivoice_t intellivoice;
+   uint8_t ivoiceRead = 0;
+   volatile uint8_t ivoiceWrite = 0;
+   volatile uint8_t ivoiceRegister[IVOICE_BUF_SIZE] = {0};
+   volatile uint8_t ivoiceValue[IVOICE_BUF_SIZE] = {0};
 #endif
 
 extern Cartridge cart;     // main data structure for cart emulation
@@ -154,8 +163,13 @@ void __time_critical_func(core1_main()) {
              * Reads must be prefetched here so DTB can output immediately.
              */
             if (cart.IntellivoiceSupport) {
-               if (intellivoice_is_addr(addrIn)) {
-                  dataOut = intellivoice_read_bus(addrIn);
+               if (addrIn == IVOICE_ADDR_ALD) {
+                  dataOut = intellivoice.lrq;
+                  deviceAddress = true;
+                  continue;
+               }
+               if (addrIn == IVOICE_ADDR_FIFO) {
+                  dataOut = (intellivoice.fifo_head - intellivoice.fifo_tail) >= 64 ? 0x8000 : 0;
                   deviceAddress = true;
                   continue;
                }
@@ -207,14 +221,12 @@ void __time_critical_func(core1_main()) {
                dataIn = sio_hw->gpio_in & 0xFFFF;          
 
 #if CONFIG_INTELLIVOICE
-               /*
-                * Keep the timing-critical bus path short: the wrapper queues
-                * writes and applies them from the audio callback context.
-                */
                if (cart.IntellivoiceSupport) {
-                  if (intellivoice_is_addr(addrIn)) {
-                     //intellivoice_write_bus(addrIn, dataIn);
-                     //continue;
+                  if ((addrIn == IVOICE_ADDR_ALD) || (addrIn == IVOICE_ADDR_FIFO)) {
+                     ivoiceRegister[ivoiceWrite] = addrIn & 0x0001;
+                     ivoiceValue[ivoiceWrite] = dataIn;
+                     ivoiceWrite = (ivoiceWrite + 1) & (IVOICE_BUF_SIZE - 1);
+                     continue;
                   }
                }
 #endif
@@ -223,7 +235,7 @@ void __time_critical_func(core1_main()) {
                   if ( (addrIn & 0xFFF0) == 0x00F0 ) {
                      ayRegister[ayWrite] = ECS_LUT[addrIn & 0x000F];
                      ayValue[ayWrite] = dataIn;
-                     ayWrite = (ayWrite + 1) % ECS_BUF_SIZE;
+                     ayWrite = (ayWrite + 1) & (ECS_BUF_SIZE - 1);
                      continue;
                   }
                }
@@ -354,12 +366,17 @@ void RunGame() {
       }
 
 #if CONFIG_ECS_AUDIO
-
       if(ayRead != ayWrite) {
          PSG_writeReg(psg0, ayRegister[ayRead], ayValue[ayRead]);
          ayRead = (ayRead + 1) % ECS_BUF_SIZE;
       }
+#endif
 
+#if CONFIG_INTELLIVOICE
+      if(ivoiceRead != ivoiceWrite) {
+         ivoice_wr(ivoiceRegister[ivoiceRead],  ivoiceValue[ivoiceRead]);
+         ivoiceRead = (ivoiceRead + 1) % IVOICE_BUF_SIZE;
+      }
 #endif
 
 #if CONFIG_JLP

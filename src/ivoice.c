@@ -64,13 +64,13 @@
 /*
  * Minty port:
  * - remove FreeIntv/libretro dependencies
- * - provide AUDIO_FREQ and INLINE through minty_ivoice_config.h
  */
-#include "minty_ivoice_config.h"
+#include "audio.h"
 #include "ivoice.h"
 
 
 ivoice_t intellivoice;
+
 int ivoiceBufferSize;
 int16_t ivoiceBuffer[AUDIO_FREQ / 60 * 2];
 
