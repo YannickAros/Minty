@@ -54,8 +54,8 @@ bool audio_callback(repeating_timer_t *rt) {
    if (cart.IntellivoiceSupport) {
       // Intellivoice output is signed, ranging from -32768 to 32767.
       ivoice_raw = (int32_t)intellivoice_next_sample();
-      // scale to 0..4095 range to match ECS output
-      ivoice_raw = (ivoice_raw + 32768) >> 4;
+      // scale to match ECS output level
+      ivoice_raw = ((ivoice_raw + 32768) >> 2);
    }
 
    /* apply 8-bit volume control, normalize to 10-bit PWM */
@@ -67,7 +67,7 @@ bool audio_callback(repeating_timer_t *rt) {
    static uint16_t cnt = 0;
    if (cnt++ >= 8000) {
       cnt = 0;
-      printf("audio_callback: ecs=%08lX, ivoice=%08lX\n", ecs_raw, ivoice_raw);   
+      printf("audio_callback: ecs=%08lX, ivoice=%08lX\n", ecs_raw,ivoice_raw); 
    }
 #else
    pwm_set_gpio_level(AUDIO_PIN, pwm);
