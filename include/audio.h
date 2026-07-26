@@ -5,7 +5,7 @@
 
 #define PAL_ECS_FREQ       4000000
 #define NTSC_ECS_FREQ      3579545
-#define AUDIO_PERIOD       25
+#define AUDIO_PERIOD       24
 #define AUDIO_FREQ         (1000000/AUDIO_PERIOD)
 
 void init_audio(uint8_t tv_mode, uint8_t volume);
