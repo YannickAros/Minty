@@ -28,7 +28,8 @@ extern mm_map_t m;
 
 extern uint8_t tv_mode;      // 0: PAL, 1: NTSC
 extern uint8_t ecs_present;  // 0: ECS absent, 1: ECS present
-extern uint8_t ecs_volume;
+extern uint8_t voice_present; // 0: iVoice absent, 1: iVoice Absent
+extern uint8_t audio_volume;
 
 void init_cart(void) {
 
@@ -297,13 +298,15 @@ int load_cfg(char *filename) {
                }
             }
          }
-         int intellivoice_value = 0;
-         if ( sscanf(tmp_buffer, "voice = %d", &intellivoice_value) == 1 ) {
-            cart.IntellivoiceSupport = true;
-            printf("Intellivoice emulation enabled\n");
+         if (voice_present == 0) { 
+            int intellivoice_value = 0;
+            if ( sscanf(tmp_buffer, "voice = %d", &intellivoice_value) == 1 ) {
+               cart.IntellivoiceSupport = true;
+               printf("Intellivoice emulation enabled\n");
+            }
          }
          if (cart.ECSSupport || cart.IntellivoiceSupport) {
-            init_audio(tv_mode, ecs_volume);
+            init_audio(tv_mode, audio_volume);
          }
 #endif
 

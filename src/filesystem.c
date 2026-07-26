@@ -21,7 +21,8 @@ extern mm_map_t m;
 
 extern uint8_t tv_mode;      // 0: PAL, 1: NTSC
 extern uint8_t ecs_present;  // 0: ECS absent, 1: ECS present
-extern uint8_t ecs_volume;
+extern uint8_t voice_present; // 0: iVoice absent, 1: iVoice Absent
+extern uint8_t audio_volume;
 
 int entry_compare(const void *p1, const void *p2) {
    SCREEN_ENTRY *e1 = (SCREEN_ENTRY *) p1;
@@ -245,12 +246,14 @@ int load_file(char *filename) {
                      cart.ECSSupport = true;
                   }
                }
-               if ( (inputBuffer[0] >> 4) & 0x02 ) {
-                  cart.IntellivoiceSupport = true;
-                  printf("Intellivoice emulation enabled\n");
+               if (voice_present == 0) {
+                  if ( (inputBuffer[0] >> 4) & 0x02 ) {
+                     cart.IntellivoiceSupport = true;
+                     printf("Intellivoice emulation enabled\n");
+                  }
                }
                if (cart.ECSSupport || cart.IntellivoiceSupport) {
-                  init_audio(tv_mode, ecs_volume);
+                  init_audio(tv_mode, audio_volume);
                }
 #endif
                vfs_read(f, inputBuffer, 2);  // skip 2 bytes to search JLP attributes
