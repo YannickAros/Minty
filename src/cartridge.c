@@ -51,7 +51,7 @@
    uint8_t ivoiceRead = 0;
    volatile uint8_t ivoiceWrite = 0;
    volatile uint8_t ivoiceRegister[IVOICE_BUF_SIZE] = {0};
-   volatile uint8_t ivoiceValue[IVOICE_BUF_SIZE] = {0};
+   volatile uint16_t ivoiceValue[IVOICE_BUF_SIZE] = {0};
 #endif
 
 extern Cartridge cart;     // main data structure for cart emulation
