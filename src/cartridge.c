@@ -197,7 +197,7 @@ void __time_critical_func(core1_main()) {
                   }
             } 
 #endif
-
+            
             seg = (addrIn >> 12) & 0xF;
             mm_kind_t kind = mm_lookup(&m, addrIn, curPageArr[seg], (uint32_t *) &romaddr);
 
@@ -207,8 +207,8 @@ void __time_critical_func(core1_main()) {
             } else if (MM_IS_RAM(kind)) {
                dataOut = cart.RAM[romaddr];
                deviceAddress = true;
-            }
-
+            } 
+            
          } else {
             if (busState == BUS_DWS) {
 
@@ -284,7 +284,7 @@ void __time_critical_func(core1_main()) {
                         cart.RAM[romaddr] = dataIn & 0xFF;
                      } else if (kind == MM_RAM16) {
                         cart.RAM[romaddr] = dataIn;
-                     }
+                     } 
                      
 #if CONFIG_JLP
                   }
