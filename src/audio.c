@@ -6,6 +6,12 @@
 #include "hardware/pwm.h"
 #include "hardware/structs/pwm.h"
 
+#if PICO_CYW43_SUPPORTED
+   #include "boards/pico2_w.h"
+   #include "pico/cyw43_arch.h"
+   #include "pico/cyw43_driver.h"
+#endif
+
 #include "board.h"
 #include "audio.h"
 #include "emu2149.h"
@@ -44,7 +50,11 @@ bool  __not_in_flash_func(audio_callback)(repeating_timer_t *rt) {
    static int32_t ivoice_raw = 0;
    static uint8_t audio_cycle = 0;
 
-
+#if PICO_CYW43_SUPPORTED
+   cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
+#else
+   gpio_put(LED, false);
+#endif
 
    /* first action is to output sample from previous cycle, this way processing speed doesn't affect sample timing */
 #ifndef NDEBUG
@@ -79,6 +89,12 @@ bool  __not_in_flash_func(audio_callback)(repeating_timer_t *rt) {
    }
 
    audio_cycle = (audio_cycle + 1) & 0x03;
+
+#if PICO_CYW43_SUPPORTED
+   cyw43_arch_gpio_put(CYW43_WL_GPIO_LED_PIN, 1);
+#else
+   gpio_put(LED, true);
+#endif
 
    return true;
 }
